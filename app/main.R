@@ -4,7 +4,8 @@ box::use(
         tableOutput, renderTable, numericInput, req, reactive, downloadHandler],
   utils[head],
   tidyr[pivot_longer],
-  dplyr[starts_with]
+  dplyr[starts_with, mutate, select],
+  stringr[str_replace, str_split],
 )
 
 #' @export
@@ -30,14 +31,27 @@ server <- function(id) {
       )
     })
 
-    output$preview <- renderTable({
+    new_data  <- reactive({
+      splitting_date <- data()$Data |> str_split("/")
+
       data() |>
+        mutate(
+          Mês = unlist(splitting_date)[2] |> as.integer(),
+          Ano = unlist(splitting_date)[3] |> as.integer()
+        ) |>
         pivot_longer(
           cols = starts_with("Chuva"),
-          names_to = "Chuva",
-          values_to = "Dia"
-        ) #|>
-        #head()
+          names_to = "Dia",
+          values_to = "Chuva"
+        ) |>
+        mutate(
+          Dia = str_replace(Dia, "Chuva", "") |> as.integer()
+        )
+    })
+
+    output$preview <- renderTable({
+      new_data() |>
+        head()
     })
 
     output$download <- downloadHandler(
