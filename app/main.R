@@ -4,7 +4,8 @@ box::use(
         tableOutput, renderTable, numericInput, req, reactive, downloadHandler],
   utils[head],
   tidyr[pivot_longer],
-  dplyr[starts_with, mutate, select],
+  dplyr[starts_with, mutate, select, distinct, group_by, summarise,
+        mutate_if],
   stringr[str_replace, str_split],
 )
 
@@ -35,6 +36,7 @@ server <- function(id) {
       splitting_date <- data()$Data |> str_split("/")
 
       data() |>
+        distinct(Data, .keep_all = TRUE) |>
         mutate(
           Mês = unlist(splitting_date)[2] |> as.integer(),
           Ano = unlist(splitting_date)[3] |> as.integer()
@@ -46,12 +48,18 @@ server <- function(id) {
         ) |>
         mutate(
           Dia = str_replace(Dia, "Chuva", "") |> as.integer()
-        )
+        ) |>
+        #select(-Data) |>
+        spe
+        #mutate_if(is.character, as.numeric) #|>
+        # group_by(Ano, .drop = FALSE) #|>
+        # summarise(
+        #   MediaPrecAnual = mean(Chuva)
+        # )
     })
 
     output$preview <- renderTable({
-      new_data() |>
-        head()
+      new_data()
     })
 
     output$download <- downloadHandler(
