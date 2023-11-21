@@ -5,7 +5,7 @@ box::use(
   utils[head],
   tidyr[pivot_longer],
   dplyr[starts_with, mutate, select, distinct, group_by, summarise,
-        mutate_if],
+        mutate_if, ungroup],
   stringr[str_replace, str_split],
 )
 
@@ -27,7 +27,7 @@ server <- function(id) {
 
       ext <- tools::file_ext(input$upload$name)
       switch(ext,
-        csv = vroom::vroom(input$upload$datapath),
+        csv = vroom::vroom(input$upload$datapath) |> distinct(),
         validate("Arquivo Inválido: Faça o Upload de um arquivo .csv")
       )
     })
@@ -36,7 +36,6 @@ server <- function(id) {
       splitting_date <- data()$Data |> str_split("/")
 
       data() |>
-        distinct(Data, .keep_all = TRUE) |>
         mutate(
           Mês = unlist(splitting_date)[2] |> as.integer(),
           Ano = unlist(splitting_date)[3] |> as.integer()
@@ -47,15 +46,28 @@ server <- function(id) {
           values_to = "Chuva"
         ) |>
         mutate(
-          Dia = str_replace(Dia, "Chuva", "") |> as.integer()
+          Dia = str_replace(Dia, "Chuva", "") |> as.integer(),
+          Chuva = readr::parse_number(x = Chuva, locale = locale(decimal_mark = ","))
         ) |>
-        #select(-Data) |>
-        spe
-        #mutate_if(is.character, as.numeric) #|>
-        # group_by(Ano, .drop = FALSE) #|>
-        # summarise(
-        #   MediaPrecAnual = mean(Chuva)
-        # )
+        select(-Data) |>
+        mutate(
+          across(where(is.character), as.numeric)
+        ) |>
+        group_by(.groups = Ano) |>
+        mutate(
+          MediaPrecAno = mean(Chuva, na.rm = TRUE),
+          MaximaPrecAno = max(Chuva, na.rm = TRUE),
+          MinimaPrecAno = min(Chuva, na.rm = TRUE)
+        ) |>
+        ungroup() |>
+        group_by(Ano, Mês) |>
+        mutate(
+          MediaDiasPrecAno = mean(Chuva, na.rm = TRUE),
+          MaximaDiasPrecAno = max(Chuva, na.rm = TRUE),
+          MinimaDiasPrecAno = min(Chuva, na.rm = TRUE)
+        ) |>
+        ungroup() |>
+        head()
     })
 
     output$preview <- renderTable({
